@@ -32,7 +32,7 @@ public class ApplicationStarter implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         System.out.println("Traffic Task");
         trafficTask();
         System.out.println("*************************************");
@@ -40,7 +40,7 @@ public class ApplicationStarter implements CommandLineRunner {
         friendsTask();
     }
 
-    public void trafficTask(String... args) {
+    public void trafficTask() {
         MongoDatabase db = mongoClient.getDatabase("website_traffic");
 
         MongoCollection traffics = db.getCollection("traffic");
@@ -54,20 +54,20 @@ public class ApplicationStarter implements CommandLineRunner {
     }
 
     private void printMapReduceFriends(MongoDatabase db, MongoCollection friends) {
-        String map = "function(){"
-                + " for (var i = 0; i < this.friends.length; i++){ "
-                + " var key = this.friends[i].friend_id;"
-                + " emit(key,1); "
-                + " }"
-                + " };";
+        String map = String.join("", "function(){",
+                " for (var i = 0; i < this.friends.length; i++){ ",
+                " var key = this.friends[i].friend_id;",
+                " emit(key,1); ",
+                " }",
+                " };");
 
-        String reduce = "function(key, values){ "
-                + " var sum= 0;"
-                + " values.forEach(function (value){ "
-                + " sum +=1; "
-                + " });"
-                + " return (key, sum); "
-                + " };";
+        String reduce = String.join("","function(key, values){ ",
+                 " var sum= 0;",
+                 " values.forEach(function (value){ ",
+                 " sum +=1; ",
+                 " });",
+                 " return (key, sum); ",
+                 " };");
 
         friends.mapReduce(map, reduce).action(MapReduceAction.REPLACE).collectionName("friends_stat");
         db.getCollection("friends_stat").find().sort(new Document("value", -1)).limit(5).
@@ -75,17 +75,17 @@ public class ApplicationStarter implements CommandLineRunner {
     }
 
     private void printMapReduceTraffic(MongoCollection traffics) {
-        String map = "function(){" +
-                "emit({resource: this. url}, {total:1});" +
-                "};";
+        String map = String.join("","function(){",
+                "emit({resource: this. url}, {total:1});",
+                "};");
 
-        String reduce = "function(key, values){" +
-                "var sum = 0;" +
-                "values.forEach(function (value){" +
-                "sum += 1;" +
-                "});" +
-                "return ({resource: key}, {total: sum});" +
-                "};";
+        String reduce = String.join("","function(key, values){",
+                "var sum = 0;",
+                "values.forEach(function (value){",
+                "sum += 1;",
+                "});",
+                "return ({resource: key}, {total: sum});",
+                "};");
 
         traffics.mapReduce(map, reduce).forEach((Block<Document>) document -> System.out.println(document.toJson()));
     }
@@ -104,14 +104,14 @@ public class ApplicationStarter implements CommandLineRunner {
     private void printAggregateTraffic(MongoCollection traffics) {
         traffics.aggregate(
                 Arrays.asList(
-                      //  Aggregates.group("$url", Accumulators.sum("count", 1)),
+                        //  Aggregates.group("$url", Accumulators.sum("count", 1)),
                         Aggregates.group(new Document().append("resource", "$url"), Accumulators.sum("total", 1)),
                         Aggregates.sort(new Document("count", -1))
                 )
         ).forEach((Block<Document>) document -> System.out.println(document.toJson()));
     }
 
-    public void friendsTask() throws Exception {
+    public void friendsTask() {
         MongoDatabase db = mongoClient.getDatabase("friendship");
 
         MongoCollection friends = db.getCollection("friends");
